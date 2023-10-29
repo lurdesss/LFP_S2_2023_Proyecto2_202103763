@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import *
-from tkinter.filedialog import askopenfilename, asksaveasfilename
-# from analizador import analizar
-# from analizador import genera_reporte, analizar, errores_en
+from tkinter.filedialog import askopenfilename
+from analizador_lexico import Analizador
 import sys
 import os
 
@@ -156,7 +155,9 @@ class Ventana(tk.Tk):
         self.config(background="#f0f0f0")
         self.centrar(self, 850, 530)
         self.resizable(0, 0)
-        self.overrideredirect(True)
+        self.variando = 0
+        self.analisis = 0
+        # self.overrideredirect(True)
     
         # visualizar bizdata, editar datos
         self.scroll = ScrollText(self)
@@ -171,15 +172,15 @@ class Ventana(tk.Tk):
         # genera html: reporte de tokens, reporte de errores, arbol de derivacion
         btn_reporte_tokens = Button(self, text="Reporte de tokens", command=self.reporte_tokens,
                              width=20, height=1, font=("Lucida Sans", 10), bg="#232526", fg="#e8e8e8")
-        btn_reporte_tokens.place(x=160, y=10)
+        btn_reporte_tokens.place(x=150, y=10)
 
         btn_reporte_errores = Button(self, text="Reporte de errores", command=self.reporte_errores,
                               width=20, height=1, font=("Lucida Sans", 10), bg="#232526", fg="#e8e8e8")
-        btn_reporte_errores.place(x=340, y=10)
+        btn_reporte_errores.place(x=330, y=10)
 
         btn_arbol = Button(self, text="Arbol de derivacion", command=self.reporte_arbol,
                                  width=20, height=1, font=("Lucida Sans", 10), bg="#232526", fg="#e8e8e8")
-        btn_arbol.place(x=520, y=10)
+        btn_arbol.place(x=510, y=10)
 
         # labels consola
         self.lbl_consola = Label(self, text="[ consola >>> ]", bg=(
@@ -212,33 +213,128 @@ class Ventana(tk.Tk):
 
     def abrir_archivo(self):
         filepath = askopenfilename(
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
+            filetypes=[("bizdata archivos", "*.bizdata"), ("All Files", "*.*")]
         )
         if not filepath:
             return
 
         self.scroll.delete(1.0, tk.END)  # Limpia el área de texto
-        with open(filepath, "r") as input_file:
+        with open(filepath, "r", encoding="utf-8") as input_file:
             text = input_file.read()
             # Inserta la información del archivo seleccionado
             self.scroll.insert(tk.END, text)
         self.title(f"Proyecto 1 - {filepath}")
+        self.variando = self.scroll.get(1.0, tk.END)
+        self.analisis = Analizador(self.variando)
+        self.analisis.tokenize_input(self.variando)
 
     def analizar_json(self):
         print("Analizando...")
+        
+        print("------------------------- Comentarios -------------------------")
+        for i in self.analisis.comentarios:
+            print(i.tipo, i.estructura)
 
     def inicializar(self):
         python = sys.executable
         os.execl(python, python, * sys.argv)
 
     def reporte_tokens(self):
-        print("generando html tokens...")
+        print("Generando HTML de tokens...")
+        n = 0
+        html = """<!DOCTYPE html>
+        <html>
+        <head>
+            <title>tokens</title>
+            <link rel="stylesheet" type="text/css" href="styles.css">
+        </head>
+        <body>
+            <h1>Tokens</h1>
+            <table class="token-table">
+                <tr>
+                    <th>No.</th>
+                    <th>Nombre</th>
+                    <th>Lexema</th>
+                    <th>Fila</th>
+                    <th>Columna</th>
+                </tr>
+        """
+
+        for i in self.analisis.tokens_reconocidos:
+            html += f"<tr class='token-row'>\n"
+            html += f"    <td class='num'>{n+1}</td>\n"
+            html += f"    <td class='param'>{i.nombre}</td>\n"
+            html += f"    <td class='param'>{i.lexema}</td>\n"
+            html += f"    <td class='param'>{i.fila}</td>\n"
+            html += f"    <td class='param'>{i.columna}</td>\n"
+            html += "</tr>\n"
+            n += 1
+
+        html += """</table>
+        </body>
+        </html>
+        """
+
+        ruta = "tokens.html"
+
+        with open(ruta, "w") as archivo:
+            archivo.write(html)
+
 
     def reporte_errores(self):
         print("generando html errores...")
+
+        n = 0
+        html = """<!DOCTYPE html>
+        <html>
+        <head>
+            <title>errores</title>
+            <link rel="stylesheet" type="text/css" href="styles.css">
+        </head>
+        <body>
+            <h1>Errores</h1>
+            <table class="token-table">
+                <tr>
+                    <th>No.</th>
+                    <th>Tipo</th>
+                    <th>Lexema</th>
+                    <th>Fila</th>
+                    <th>Columna</th>
+                </tr>
+        """
+
+        for i in self.analisis.errores:
+            html += f"<tr class='token-row'>\n"
+            html += f"    <td class='num'>{n+1}</td>\n"
+            html += f"    <td class='param'>{i.tipo}</td>\n"
+            html += f"    <td class='param'>{i.lexema}</td>\n"
+            html += f"    <td class='param'>{i.fila}</td>\n"
+            html += f"    <td class='param'>{i.columna}</td>\n"
+            html += "</tr>\n"
+            n += 1
+
+        html += """</table>
+        </body>
+        </html>
+        """
+
+        ruta = "errores.html"
+
+        with open(ruta, "w") as archivo:
+            archivo.write(html)
     
     def reporte_arbol(self):
-        print("generando html arbol...")
+        print("imprimiendo comentarios...")
+        dato2 = self.scroll.get(1.0, tk.END)
+        analisis = Analizador(dato2)
+        analisis.analizar(dato2)
+        for i in analisis.tokens_reconocidos:
+            print(i)
+
+
+    def generar_html(self):
+
+        print("generando html...")
 
 
 app = Ventana()
